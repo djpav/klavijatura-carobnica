@@ -27,6 +27,32 @@
   };
   let spellMode = false;
   let speechTimer = null;
+  let srVoice = null;
+
+  /* Try to find a Serbian/Croatian/Bosnian voice */
+  function findSrVoice(){
+    const voices = speechSynthesis.getVoices();
+    const prefLangs = ['sr-RS','sr','hr-HR','hr','bs-BS','bs','sr-Latn','sr-Latn-RS'];
+    for(const lang of prefLangs){
+      const v = voices.find(v => v.lang === lang || v.lang.startsWith(lang + '-'));
+      if(v) { return v; }
+    }
+    /* Fallback: search by name keywords */
+    const kw = ['serbian','srpski','croatian','hrvatski','bosnian','bosanski'];
+    for(const v of voices){
+      const name = v.name.toLowerCase();
+      if(kw.some(k => name.includes(k))) { return v; }
+    }
+    return null;
+  }
+
+  function initVoices(){
+    srVoice = findSrVoice();
+  }
+  if(typeof speechSynthesis !== 'undefined'){
+    speechSynthesis.addEventListener('voiceschanged', initVoices);
+    initVoices();
+  }
 
   function speakSr(text){
     try {
@@ -34,7 +60,12 @@
       speechSynthesis.cancel();
       speechTimer = setTimeout(()=>{
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'sr-RS';
+        if(srVoice){
+          u.voice = srVoice;
+          u.lang = srVoice.lang;
+        } else {
+          u.lang = 'sr-RS';
+        }
         u.rate = 0.85;
         u.pitch = 1.1;
         u.volume = 1;
