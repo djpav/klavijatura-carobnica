@@ -2,7 +2,7 @@
 
 Interaktivna igra za decu - pritisni bilo koji taster na tastaturi ili klikni mišem i gledaj šta se desi!
 
-## [▶ Play Now!](https://djpav.github.io/kavijatura-carobnica/)
+## [▶ Play Now!](https://djpav.github.io/klavijatura-carobnica/)
 
 ### Kako se igra
 
