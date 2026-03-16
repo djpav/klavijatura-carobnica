@@ -23,11 +23,28 @@
     Q:'ku', R:'er', S:'es', T:'te', U:'u', V:'ve', W:'duplo ve',
     X:'iks', Y:'ipsilon', Z:'ze',
     '0':'nula', '1':'jedan', '2':'dva', '3':'tri', '4':'četiri',
-    '5':'pet', '6':'šest', '7':'sedam', '8':'osam', '9':'devet'
+    '5':'pet', '6':'šest', '7':'sedam', '8':'osam', '9':'devet',
+    /* Serbian special letters */
+    'Š':'ša', 'Đ':'đe', 'Č':'če', 'Ć':'će', 'Ž':'že',
+    'DŽ':'dže', 'LJ':'lje', 'NJ':'nje'
   };
+
+  /* Map Serbian special chars to audio file keys */
+  const SR_AUDIO_KEY = {
+    'Š':'SH', 'Đ':'DJ', 'Č':'CH', 'Ć':'CC', 'Ž':'ZH',
+    'DŽ':'DZH', 'LJ':'LJ', 'NJ':'NJ'
+  };
+
   let spellMode = false;
   let speechTimer = null;
   let currentAudio = null;
+
+  /* Digraph detection: D+J→Đ, L+J→Lj, N+J→Nj */
+  let lastKey = '';
+  let lastKeyTime = 0;
+  const DIGRAPH_MAP = { D:'DŽ', L:'LJ', N:'NJ' };
+  const DIGRAPH_DISPLAY = { 'DŽ':'Dž', 'LJ':'Lj', 'NJ':'Nj' };
+  const DIGRAPH_WINDOW = 300; /* ms */
 
   /* Pre-recorded Serbian audio files */
   const audioCache = {};
@@ -37,6 +54,7 @@
     audioCache[key] = a;
   }
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('').forEach(preloadAudio);
+  ['SH','DJ','CH','CC','ZH','DZH','LJ','NJ'].forEach(preloadAudio);
 
   function speakSr(key){
     clearTimeout(speechTimer);
@@ -210,7 +228,6 @@
       sc.style.cssText = `--ss:${Math.round(es*.32)}px`;
       sc.textContent = spellText;
       b.appendChild(sc);
-      speakSr(label);
     }
 
     stage.appendChild(b);
@@ -239,17 +256,55 @@
   }
 
   /* ── KEYBOARD ── */
-  function isLetterOrDigit(e){
-    return (e.key && e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key));
+  const SR_CHARS = /^[a-zA-Z0-9šđčćžŠĐČĆŽ]$/;
+  function isAllowed(e){
+    return (e.key && e.key.length === 1 && SR_CHARS.test(e.key));
   }
+
+  /* Map direct Serbian keyboard chars to canonical keys */
+  const SR_DIRECT = {'š':'Š','đ':'Đ','č':'Č','ć':'Ć','ž':'Ž'};
+
   document.addEventListener('keydown', e=>{
     if(!active) { return; }
-    if(!isLetterOrDigit(e)) { return; }
+    if(!isAllowed(e)) { return; }
+
+    const now = Date.now();
+    const upper = e.key.toUpperCase();
+    let label, spellKey, audioKey;
+
+    /* Check for direct Serbian chars (Serbian keyboard layout) */
+    const directSr = SR_DIRECT[e.key] || SR_DIRECT[upper];
+    if(directSr){
+      label = directSr;
+      spellKey = directSr;
+      audioKey = SR_AUDIO_KEY[directSr];
+    }
+    /* Check for digraph: J after D/L/N within 300ms */
+    else if(upper === 'J' && DIGRAPH_MAP[lastKey] && (now - lastKeyTime) < DIGRAPH_WINDOW){
+      const digraph = DIGRAPH_MAP[lastKey];
+      label = DIGRAPH_DISPLAY[digraph];
+      spellKey = digraph;
+      audioKey = SR_AUDIO_KEY[digraph];
+      /* Remove the previous single-letter bubble */
+      const lastBubble = stage.querySelector('.bubble:last-of-type');
+      if(lastBubble) { lastBubble.remove(); }
+      lastKey = '';
+      lastKeyTime = 0;
+    }
+    /* Regular letter/digit */
+    else {
+      label = upper;
+      spellKey = upper;
+      audioKey = upper;
+      lastKey = upper;
+      lastKeyTime = now;
+    }
+
     const x = Math.random() * (stage.clientWidth  - 140) + 70;
     const y = Math.random() * (stage.clientHeight - 220) + 110;
-    const upper = e.key.toUpperCase();
-    const spell = spellMode ? (SPELL_SR[upper] || null) : null;
-    spawn(x, y, upper, spell);
+    const spell = spellMode ? (SPELL_SR[spellKey] || null) : null;
+    spawn(x, y, label, spell);
+    if(spellMode && audioKey){ speakSr(audioKey); }
   }, true);
 
   /* ── MOUSE ── */

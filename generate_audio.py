@@ -20,6 +20,11 @@ DIGITS = {
     "8": "осам", "9": "девет",
 }
 
+SERBIAN_SPECIAL = {
+    "SH": "ша", "DJ": "ђе", "CH": "че", "CC": "ће", "ZH": "же",
+    "DZH": "џе", "LJ": "ље", "NJ": "ње",
+}
+
 
 async def generate(key: str, text: str) -> None:
     filename = f"{OUTPUT_DIR}/{key}.mp3"
@@ -29,7 +34,7 @@ async def generate(key: str, text: str) -> None:
 
 
 async def main() -> None:
-    all_items = {**LETTERS, **DIGITS}
+    all_items = {**LETTERS, **DIGITS, **SERBIAN_SPECIAL}
     print(f"Generating {len(all_items)} audio files with voice {VOICE}...")
     tasks = [generate(k, v) for k, v in all_items.items()]
     await asyncio.gather(*tasks)
