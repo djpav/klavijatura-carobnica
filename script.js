@@ -27,64 +27,30 @@
   };
   let spellMode = false;
   let speechTimer = null;
-  let srVoice = null;
-  let hasSrVoice = false;
+  let currentAudio = null;
 
-  /* Phonetic English approximations that sound like Serbian pronunciation */
-  const SPELL_PHONETIC = {
-    A:'ah', B:'beh', C:'tseh', D:'deh', E:'eh', F:'eff', G:'geh', H:'hah',
-    I:'ee', J:'yeh', K:'kah', L:'ell', M:'emm', N:'enn', O:'oh', P:'peh',
-    Q:'koo', R:'air', S:'ess', T:'teh', U:'oo', V:'veh', W:'doo-ploh veh',
-    X:'eeks', Y:'ee-psee-lon', Z:'zeh',
-    '0':'noo-lah', '1':'yeh-dahn', '2':'dvah', '3':'tree', '4':'cheh-tee-ree',
-    '5':'peht', '6':'shehst', '7':'seh-dahm', '8':'oh-sahm', '9':'deh-veht'
-  };
+  /* Pre-recorded Serbian audio files */
+  const audioCache = {};
+  function preloadAudio(key){
+    const a = new Audio('audio/' + key + '.mp3');
+    a.preload = 'auto';
+    audioCache[key] = a;
+  }
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('').forEach(preloadAudio);
 
-  /* Try to find a Serbian/Croatian/Bosnian voice */
-  function findSrVoice(){
-    if(typeof speechSynthesis === 'undefined') { return null; }
-    const voices = speechSynthesis.getVoices();
-    const prefLangs = ['sr-RS','sr','hr-HR','hr','bs-BS','bs','sr-Latn','sr-Latn-RS'];
-    for(const lang of prefLangs){
-      const v = voices.find(v => v.lang === lang || v.lang.startsWith(lang + '-'));
-      if(v) { return v; }
+  function speakSr(key){
+    clearTimeout(speechTimer);
+    if(currentAudio){
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
     }
-    const kw = ['serbian','srpski','croatian','hrvatski','bosnian','bosanski'];
-    for(const v of voices){
-      const name = v.name.toLowerCase();
-      if(kw.some(k => name.includes(k))) { return v; }
-    }
-    return null;
-  }
-
-  function initVoices(){
-    srVoice = findSrVoice();
-    hasSrVoice = !!srVoice;
-  }
-  if(typeof speechSynthesis !== 'undefined'){
-    speechSynthesis.addEventListener('voiceschanged', initVoices);
-    initVoices();
-  }
-
-  function speakSr(key, text){
-    if(typeof speechSynthesis === 'undefined') { return; }
-    try {
-      clearTimeout(speechTimer);
-      speechSynthesis.cancel();
-      speechTimer = setTimeout(()=>{
-        const u = new SpeechSynthesisUtterance(
-          hasSrVoice ? text : (SPELL_PHONETIC[key] || text)
-        );
-        if(hasSrVoice){
-          u.voice = srVoice;
-          u.lang = srVoice.lang;
-        }
-        u.rate = 0.85;
-        u.pitch = 1.1;
-        u.volume = 1;
-        speechSynthesis.speak(u);
-      }, 150);
-    } catch { /* Speech not available */ }
+    speechTimer = setTimeout(()=>{
+      const a = audioCache[key];
+      if(!a) { return; }
+      a.currentTime = 0;
+      currentAudio = a;
+      a.play().catch(()=>{});
+    }, 120);
   }
 
   /* ── AUDIO ── */
@@ -244,7 +210,7 @@
       sc.style.cssText = `--ss:${Math.round(es*.32)}px`;
       sc.textContent = spellText;
       b.appendChild(sc);
-      speakSr(label, spellText);
+      speakSr(label);
     }
 
     stage.appendChild(b);
