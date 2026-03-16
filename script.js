@@ -18,21 +18,47 @@
 
   /* ── SPELL MODE ── */
   const SPELL_SR = {
+    /* Latin */
     A:'a', B:'be', C:'ce', D:'de', E:'e', F:'ef', G:'ge', H:'ha',
     I:'i', J:'je', K:'ka', L:'el', M:'em', N:'en', O:'o', P:'pe',
     Q:'ku', R:'er', S:'es', T:'te', U:'u', V:'ve', W:'duplo ve',
     X:'iks', Y:'ipsilon', Z:'ze',
+    /* Digits */
     '0':'nula', '1':'jedan', '2':'dva', '3':'tri', '4':'četiri',
     '5':'pet', '6':'šest', '7':'sedam', '8':'osam', '9':'devet',
-    /* Serbian special letters */
+    /* Serbian Latin special */
     'Š':'ša', 'Đ':'đe', 'Č':'če', 'Ć':'će', 'Ž':'že',
     'DŽ':'dže', 'LJ':'lje', 'NJ':'nje'
   };
 
-  /* Map Serbian special chars to audio file keys */
+  /* Map all chars to audio file keys */
   const SR_AUDIO_KEY = {
     'Š':'SH', 'Đ':'DJ', 'Č':'CH', 'Ć':'CC', 'Ž':'ZH',
     'DŽ':'DZH', 'LJ':'LJ', 'NJ':'NJ'
+  };
+
+  /* Cyrillic to Latin mapping (for display, spell text, and audio) */
+  const CYR_TO_LAT = {
+    'А':'A', 'Б':'B', 'В':'V', 'Г':'G', 'Д':'D', 'Ђ':'Đ',
+    'Е':'E', 'Ж':'Ž', 'З':'Z', 'И':'I', 'Ј':'J', 'К':'K',
+    'Л':'L', 'Љ':'LJ', 'М':'M', 'Н':'N', 'Њ':'NJ', 'О':'O',
+    'П':'P', 'Р':'R', 'С':'S', 'Т':'T', 'Ћ':'Ć', 'У':'U',
+    'Ф':'F', 'Х':'H', 'Ц':'C', 'Ч':'Č', 'Џ':'DŽ', 'Ш':'Š',
+    /* lowercase */
+    'а':'A', 'б':'B', 'в':'V', 'г':'G', 'д':'D', 'ђ':'Đ',
+    'е':'E', 'ж':'Ž', 'з':'Z', 'и':'I', 'ј':'J', 'к':'K',
+    'л':'L', 'љ':'LJ', 'м':'M', 'н':'N', 'њ':'NJ', 'о':'O',
+    'п':'P', 'р':'R', 'с':'S', 'т':'T', 'ћ':'Ć', 'у':'U',
+    'ф':'F', 'х':'H', 'ц':'C', 'ч':'Č', 'џ':'DŽ', 'ш':'Š'
+  };
+
+  /* Display names for Cyrillic (show both scripts) */
+  const CYR_DISPLAY = {
+    'А':'А/A', 'Б':'Б/B', 'В':'В/V', 'Г':'Г/G', 'Д':'Д/D', 'Ђ':'Ђ/Đ',
+    'Е':'Е/E', 'Ж':'Ж/Ž', 'З':'З/Z', 'И':'И/I', 'Ј':'Ј/J', 'К':'К/K',
+    'Л':'Л/L', 'Љ':'Љ/Lj', 'М':'М/M', 'Н':'Н/N', 'Њ':'Њ/Nj', 'О':'О/O',
+    'П':'П/P', 'Р':'Р/R', 'С':'С/S', 'Т':'Т/T', 'Ћ':'Ћ/Ć', 'У':'У/U',
+    'Ф':'Ф/F', 'Х':'Х/H', 'Ц':'Ц/C', 'Ч':'Ч/Č', 'Џ':'Џ/Dž', 'Ш':'Ш/Š'
   };
 
   let spellMode = false;
@@ -256,12 +282,14 @@
   }
 
   /* ── KEYBOARD ── */
-  const SR_CHARS = /^[a-zA-Z0-9šđčćžŠĐČĆŽ]$/;
+  const LATIN_CHARS = /^[a-zA-Z0-9šđčćžŠĐČĆŽ]$/;
+  const CYR_CHARS = /^[а-яА-ЯђЂљЉњЊћЋџЏјЈжЖшШчЧ]$/u;
   function isAllowed(e){
-    return (e.key && e.key.length === 1 && SR_CHARS.test(e.key));
+    if(!e.key || e.key.length > 1) { return false; }
+    return LATIN_CHARS.test(e.key) || CYR_CHARS.test(e.key);
   }
 
-  /* Map direct Serbian keyboard chars to canonical keys */
+  /* Map direct Serbian Latin keyboard chars to canonical keys */
   const SR_DIRECT = {'š':'Š','đ':'Đ','č':'Č','ć':'Ć','ž':'Ž'};
 
   document.addEventListener('keydown', e=>{
@@ -269,12 +297,21 @@
     if(!isAllowed(e)) { return; }
 
     const now = Date.now();
-    const upper = e.key.toUpperCase();
+    const k = e.key;
+    const upper = k.toUpperCase();
     let label, spellKey, audioKey;
 
-    /* Check for direct Serbian chars (Serbian keyboard layout) */
-    const directSr = SR_DIRECT[e.key] || SR_DIRECT[upper];
-    if(directSr){
+    /* Check for Cyrillic input */
+    const cyrLat = CYR_TO_LAT[k];
+    if(cyrLat){
+      const cyrUpper = k.toUpperCase();
+      label = CYR_DISPLAY[cyrUpper] || cyrUpper;
+      spellKey = cyrLat;
+      audioKey = SR_AUDIO_KEY[cyrLat] || cyrLat;
+    }
+    /* Check for direct Serbian Latin chars (š,đ,č,ć,ž) */
+    else if(SR_DIRECT[k] || SR_DIRECT[upper]){
+      const directSr = SR_DIRECT[k] || SR_DIRECT[upper];
       label = directSr;
       spellKey = directSr;
       audioKey = SR_AUDIO_KEY[directSr];
@@ -285,13 +322,12 @@
       label = DIGRAPH_DISPLAY[digraph];
       spellKey = digraph;
       audioKey = SR_AUDIO_KEY[digraph];
-      /* Remove the previous single-letter bubble */
       const lastBubble = stage.querySelector('.bubble:last-of-type');
       if(lastBubble) { lastBubble.remove(); }
       lastKey = '';
       lastKeyTime = 0;
     }
-    /* Regular letter/digit */
+    /* Regular Latin letter/digit */
     else {
       label = upper;
       spellKey = upper;
