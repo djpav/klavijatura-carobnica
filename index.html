@@ -532,11 +532,15 @@
   }
 
   /* ── KEYBOARD ── */
+  function isLetterOrDigit(e){
+    return (e.key && e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key));
+  }
   document.addEventListener('keydown', e=>{
     if(!active) { return; }
+    if(!isLetterOrDigit(e)) { return; }
     const x = Math.random() * (stage.clientWidth  - 140) + 70;
     const y = Math.random() * (stage.clientHeight - 220) + 110;
-    spawn(x, y, getLabel(e));
+    spawn(x, y, e.key.toUpperCase());
   }, true);
 
   /* ── MOUSE ── */
