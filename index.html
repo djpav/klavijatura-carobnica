@@ -602,6 +602,7 @@
     }
 
     if(e.target.closest('.theme-btn')) { return; }
+    e.preventDefault();
     const r = stage.getBoundingClientRect();
     Array.from(e.changedTouches).forEach(touch=>{
       spawn(touch.clientX - r.left, touch.clientY - r.top, '★');
