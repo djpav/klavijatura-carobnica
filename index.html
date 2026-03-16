@@ -290,6 +290,35 @@
   }
   .theme-btn:hover  { border-color: rgba(255,255,255,.7); transform: scale(1.15); }
   .theme-btn.active { border-color: var(--yellow); transform: scale(1.15); }
+
+  /* ── SPELL MODE TOGGLE ── */
+  #spell-toggle {
+    position: absolute; bottom: 50px; right: 24px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(255,255,255,.25);
+    font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    background: rgba(255,255,255,.07);
+    backdrop-filter: blur(4px);
+    transition: border-color .2s, transform .15s, background .2s;
+    z-index: 200;
+  }
+  #spell-toggle:hover { border-color: rgba(255,255,255,.7); transform: scale(1.15); }
+  #spell-toggle.active { border-color: var(--green); background: rgba(107,203,119,.2); transform: scale(1.15); }
+
+  /* ── SPELL LABEL ── */
+  .b-spell {
+    display: block;
+    margin-top: 2px;
+    font-family: 'Nunito', cursive;
+    font-weight: 700;
+    font-size: var(--ss, 14px);
+    color: var(--green);
+    text-shadow: 0 0 10px rgba(107,203,119,.5);
+    letter-spacing: .5px;
+  }
 </style>
 </head>
 <body>
@@ -316,6 +345,8 @@
     <button class="theme-btn"        data-theme="space"   title="Svemir">🚀</button>
     <button class="theme-btn"        data-theme="faces"   title="Smajliji">😀</button>
   </div>
+
+  <button id="spell-toggle" title="Spelovanje na srpskom">🔤</button>
 
   <div id="tip">Pritisni bilo koji taster ili klikni mišem!</div>
   <div id="swipe-hint">← swipe za promenu teme →</div>
@@ -407,6 +438,28 @@
     } catch { /* Web Audio not available */ }
   }
 
+  /* ── SPELL MODE ── */
+  const SPELL_SR = {
+    A:'a', B:'be', C:'ce', D:'de', E:'e', F:'ef', G:'ge', H:'ha',
+    I:'i', J:'je', K:'ka', L:'el', M:'em', N:'en', O:'o', P:'pe',
+    Q:'ku', R:'er', S:'es', T:'te', U:'u', V:'ve', W:'duplo ve',
+    X:'iks', Y:'ipsilon', Z:'ze',
+    '0':'nula', '1':'jedan', '2':'dva', '3':'tri', '4':'četiri',
+    '5':'pet', '6':'šest', '7':'sedam', '8':'osam', '9':'devet'
+  };
+  let spellMode = false;
+
+  function speakSr(text){
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'sr-RS';
+      u.rate = 0.85;
+      u.pitch = 1.1;
+      u.volume = 1;
+      speechSynthesis.speak(u);
+    } catch { /* Speech not available */ }
+  }
+
   /* ── STATE ── */
   let count = 0, combo = 1, lastTime = 0, active = false, theme = 'all';
   const stage = document.getElementById('stage');
@@ -433,6 +486,14 @@
   document.getElementById('start-btn').addEventListener('click', start);
   overlay.addEventListener('click', start);
 
+  /* ── SPELL TOGGLE ── */
+  const spellBtn = document.getElementById('spell-toggle');
+  spellBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    spellMode = !spellMode;
+    spellBtn.classList.toggle('active', spellMode);
+  });
+
   /* ── THEME BUTTONS ── */
   document.querySelectorAll('.theme-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
@@ -452,7 +513,7 @@
   const MAX_AUDIO_NODES = 12;
 
   /* ── SPAWN ── */
-  function spawn(x, y, label){
+  function spawn(x, y, label, spellText){
     if(stage.querySelectorAll('.bubble').length >= MAX_BUBBLES) { return; }
 
     const now = Date.now();
@@ -499,6 +560,16 @@
 
     b.appendChild(ec);
     b.appendChild(kc);
+
+    if(spellText){
+      const sc = document.createElement('span');
+      sc.className = 'b-spell';
+      sc.style.cssText = `--ss:${Math.round(es*.32)}px`;
+      sc.textContent = spellText;
+      b.appendChild(sc);
+      speakSr(spellText);
+    }
+
     stage.appendChild(b);
     setTimeout(()=>b.remove(), Math.round(dur*1000)+200);
 
@@ -540,7 +611,9 @@
     if(!isLetterOrDigit(e)) { return; }
     const x = Math.random() * (stage.clientWidth  - 140) + 70;
     const y = Math.random() * (stage.clientHeight - 220) + 110;
-    spawn(x, y, e.key.toUpperCase());
+    const upper = e.key.toUpperCase();
+    const spell = spellMode ? (SPELL_SR[upper] || null) : null;
+    spawn(x, y, upper, spell);
   }, true);
 
   /* ── MOUSE ── */
