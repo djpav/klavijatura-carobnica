@@ -28,7 +28,17 @@
   let spellMode = false;
   let speechTimer = null;
   let srVoice = null;
-  let currentAudio = null;
+  let hasSrVoice = false;
+
+  /* Phonetic English approximations that sound like Serbian pronunciation */
+  const SPELL_PHONETIC = {
+    A:'ah', B:'beh', C:'tseh', D:'deh', E:'eh', F:'eff', G:'geh', H:'hah',
+    I:'ee', J:'yeh', K:'kah', L:'ell', M:'emm', N:'enn', O:'oh', P:'peh',
+    Q:'koo', R:'air', S:'ess', T:'teh', U:'oo', V:'veh', W:'doo-ploh veh',
+    X:'eeks', Y:'ee-psee-lon', Z:'zeh',
+    '0':'noo-lah', '1':'yeh-dahn', '2':'dvah', '3':'tree', '4':'cheh-tee-ree',
+    '5':'peht', '6':'shehst', '7':'seh-dahm', '8':'oh-sahm', '9':'deh-veht'
+  };
 
   /* Try to find a Serbian/Croatian/Bosnian voice */
   function findSrVoice(){
@@ -49,43 +59,30 @@
 
   function initVoices(){
     srVoice = findSrVoice();
+    hasSrVoice = !!srVoice;
   }
   if(typeof speechSynthesis !== 'undefined'){
     speechSynthesis.addEventListener('voiceschanged', initVoices);
     initVoices();
   }
 
-  /* Google Translate TTS fallback */
-  function speakGoogleTts(text){
-    if(currentAudio){
-      currentAudio.pause();
-      currentAudio = null;
-    }
-    const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=sr&client=tw-ob&q=' + encodeURIComponent(text);
-    const audio = new Audio(url);
-    audio.volume = 1;
-    currentAudio = audio;
-    audio.play().catch(()=>{});
-  }
-
-  function speakSr(text){
+  function speakSr(key, text){
+    if(typeof speechSynthesis === 'undefined') { return; }
     try {
       clearTimeout(speechTimer);
+      speechSynthesis.cancel();
       speechTimer = setTimeout(()=>{
-        /* If we have a native Serbian voice, use SpeechSynthesis */
-        if(srVoice){
-          speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(text);
+        const u = new SpeechSynthesisUtterance(
+          hasSrVoice ? text : (SPELL_PHONETIC[key] || text)
+        );
+        if(hasSrVoice){
           u.voice = srVoice;
           u.lang = srVoice.lang;
-          u.rate = 0.85;
-          u.pitch = 1.1;
-          u.volume = 1;
-          speechSynthesis.speak(u);
-        } else {
-          /* Fallback to Google Translate TTS */
-          speakGoogleTts(text);
         }
+        u.rate = 0.85;
+        u.pitch = 1.1;
+        u.volume = 1;
+        speechSynthesis.speak(u);
       }, 150);
     } catch { /* Speech not available */ }
   }
@@ -247,7 +244,7 @@
       sc.style.cssText = `--ss:${Math.round(es*.32)}px`;
       sc.textContent = spellText;
       b.appendChild(sc);
-      speakSr(spellText);
+      speakSr(label, spellText);
     }
 
     stage.appendChild(b);
