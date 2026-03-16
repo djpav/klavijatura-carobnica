@@ -28,16 +28,17 @@
   let spellMode = false;
   let speechTimer = null;
   let srVoice = null;
+  let currentAudio = null;
 
   /* Try to find a Serbian/Croatian/Bosnian voice */
   function findSrVoice(){
+    if(typeof speechSynthesis === 'undefined') { return null; }
     const voices = speechSynthesis.getVoices();
     const prefLangs = ['sr-RS','sr','hr-HR','hr','bs-BS','bs','sr-Latn','sr-Latn-RS'];
     for(const lang of prefLangs){
       const v = voices.find(v => v.lang === lang || v.lang.startsWith(lang + '-'));
       if(v) { return v; }
     }
-    /* Fallback: search by name keywords */
     const kw = ['serbian','srpski','croatian','hrvatski','bosnian','bosanski'];
     for(const v of voices){
       const name = v.name.toLowerCase();
@@ -54,22 +55,37 @@
     initVoices();
   }
 
+  /* Google Translate TTS fallback */
+  function speakGoogleTts(text){
+    if(currentAudio){
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    const url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=sr&client=tw-ob&q=' + encodeURIComponent(text);
+    const audio = new Audio(url);
+    audio.volume = 1;
+    currentAudio = audio;
+    audio.play().catch(()=>{});
+  }
+
   function speakSr(text){
     try {
       clearTimeout(speechTimer);
-      speechSynthesis.cancel();
       speechTimer = setTimeout(()=>{
-        const u = new SpeechSynthesisUtterance(text);
+        /* If we have a native Serbian voice, use SpeechSynthesis */
         if(srVoice){
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
           u.voice = srVoice;
           u.lang = srVoice.lang;
+          u.rate = 0.85;
+          u.pitch = 1.1;
+          u.volume = 1;
+          speechSynthesis.speak(u);
         } else {
-          u.lang = 'sr-RS';
+          /* Fallback to Google Translate TTS */
+          speakGoogleTts(text);
         }
-        u.rate = 0.85;
-        u.pitch = 1.1;
-        u.volume = 1;
-        speechSynthesis.speak(u);
       }, 150);
     } catch { /* Speech not available */ }
   }
